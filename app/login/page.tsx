@@ -63,7 +63,14 @@ export default function LoginPage() {
       />
       <br />
 
-      <button onClick={handleLogin}>Login</button>
+      <button
+  onClick={() => {
+    console.log("CLICKED");
+    handleLogin();
+  }}
+>
+  Login
+</button>
 
       <p>{message}</p>
     </div>
