@@ -29,7 +29,7 @@ export default function ProductPage() {
 
         setProduct(found);
       } catch (err) {
-        console.log("PRODUCT ERROR:", err);
+        console.log("PRODUCT FETCH ERROR:", err);
       }
     };
 
@@ -37,33 +37,17 @@ export default function ProductPage() {
   }, [id]);
 
   // -------------------------
-  // HANDLE ORDER (FINAL FIXED VERSION)
+  // CHECKOUT FUNCTION (FIXED)
   // -------------------------
   const handleOrder = async () => {
     const storedUser = localStorage.getItem("user");
 
-    console.log("USER FROM STORAGE:", storedUser);
-
-    // ❌ Not logged in
     if (!storedUser) {
-      setMessage("⚠️ Login required to place order");
+      setMessage("⚠️ Login required");
       return;
     }
 
-    let user;
-
-    try {
-      user = JSON.parse(storedUser);
-    } catch (err) {
-      console.log("PARSE ERROR:", err);
-      setMessage("Session error. Please login again.");
-      return;
-    }
-
-    if (!user?.email) {
-      setMessage("⚠️ Invalid session. Please login again.");
-      return;
-    }
+    const user = JSON.parse(storedUser);
 
     setMessage("Processing order...");
 
@@ -74,12 +58,9 @@ export default function ProductPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-
-            // 🔥 IMPORTANT: backend may expect auth header
-            Authorization: `Bearer ${user.email}`,
           },
           body: JSON.stringify({
-            productId: id,
+            productId: Number(id), // 🔥 FIXED TYPE ISSUE
             paymentMethod: "pay_now",
             userEmail: user.email,
           }),
@@ -92,10 +73,12 @@ export default function ProductPage() {
       try {
         data = JSON.parse(text);
       } catch {
-        console.log("INVALID RESPONSE:", text);
+        console.log("BAD RESPONSE:", text);
         setMessage("Server error (invalid response)");
         return;
       }
+
+      console.log("ORDER RESPONSE:", data);
 
       if (!res.ok) {
         setMessage(data.error || "Order failed");
