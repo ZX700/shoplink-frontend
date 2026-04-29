@@ -1,93 +1,82 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function ProductPage() {
-  const params = useParams();
-  const id = params?.id as string;
+export default function LoginPage() {
+  const router = useRouter();
 
-  const [product, setProduct] = useState<any>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  // 🔍 Fetch product
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/products`
-        );
-
-        const data = await res.json();
-
-        const found = data.find(
-          (p: any) => p.id === Number(id) || p._id === id
-        );
-
-        setProduct(found);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-
-    fetchProduct();
-  }, [id]);
-
-  // ✅ FIXED CHECKOUT FUNCTION
-  const handleOrder = async () => {
-    // 🔐 ALWAYS read directly from localStorage
-    const storedUser = localStorage.getItem("user");
-
-    if (!storedUser) {
-      setMessage("⚠️ Login required to place order");
-      return;
-    }
-
-    const user = JSON.parse(storedUser);
-
-    setMessage("Processing order...");
+  // ✅ FIXED LOGIN HANDLER
+  const handleLogin = async () => {
+    setMessage("Logging in...");
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            productId: Number(id),
-            paymentMethod: "pay_now",
-            userEmail: user.email,
-          }),
+          body: JSON.stringify({ email, password }),
         }
       );
 
-      const data = await res.json();
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        console.error("Invalid response from server:", text);
+        setMessage("Server error: invalid response");
+        return;
+      }
 
       if (!res.ok) {
-        setMessage(data.error || "Order failed");
-      } else {
-        setMessage("✅ " + data.message);
+        setMessage(data.error || "Login failed");
+        return;
       }
+
+      // ✅ SAVE USER SESSION
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setMessage("Login successful!");
+
+      // ✅ REDIRECT AFTER LOGIN
+      router.push("/");
     } catch (error) {
-      setMessage("❌ Server error. Try again later.");
+      console.error("Login error:", error);
+      setMessage("Server error. Try again.");
     }
   };
 
-  if (!product) return <h1>Loading...</h1>;
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>{product.name}</h1>
-      <p>Category: {product.category}</p>
-      <p>Price: ${product.price}</p>
+    <div style={{ padding: 20 }}>
+      <h1>Login</h1>
 
-      <button onClick={handleOrder}>
-        Confirm Order
-      </button>
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <br />
 
-      {message && <p>{message}</p>}
+      <input
+        placeholder="Password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <br />
+
+      <button onClick={handleLogin}>Login</button>
+
+      <p>{message}</p>
     </div>
   );
 }
