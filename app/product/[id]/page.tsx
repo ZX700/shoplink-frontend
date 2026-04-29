@@ -9,17 +9,8 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState<any>(null);
 
-  // ✅ Load logged-in user from localStorage
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  // ✅ Fetch product
+  // 🔍 Fetch product
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -29,24 +20,45 @@ export default function ProductPage() {
 
         const data = await res.json();
 
-        const found = data.find(
+        const products = Array.isArray(data) ? data : data.products;
+
+        const found = products?.find(
           (p: any) => p.id === Number(id) || p._id === id
         );
 
         setProduct(found);
       } catch (err) {
-        console.log(err);
+        console.log("PRODUCT FETCH ERROR:", err);
       }
     };
 
     fetchProduct();
   }, [id]);
 
-  // ✅ FIXED CHECKOUT LOGIC
+  // 🔐 CHECKOUT / ORDER FUNCTION (FIXED)
   const handleOrder = async () => {
-    // 🔐 Check if user is logged in
-    if (!user) {
+    // always read directly from storage
+    const storedUser = localStorage.getItem("user");
+
+    console.log("USER RAW:", storedUser);
+
+    if (!storedUser) {
       setMessage("⚠️ Login required to place order");
+      return;
+    }
+
+    let user;
+
+    try {
+      user = JSON.parse(storedUser);
+    } catch (err) {
+      console.error("USER PARSE ERROR:", err);
+      setMessage("Session error. Please login again.");
+      return;
+    }
+
+    if (!user?.email) {
+      setMessage("⚠️ Invalid session. Please login again.");
       return;
     }
 
@@ -63,7 +75,7 @@ export default function ProductPage() {
           body: JSON.stringify({
             productId: Number(id),
             paymentMethod: "pay_now",
-            userEmail: user.email, // optional but useful
+            userEmail: user.email,
           }),
         }
       );
@@ -76,6 +88,7 @@ export default function ProductPage() {
         setMessage("✅ " + data.message);
       }
     } catch (error) {
+      console.error("ORDER ERROR:", error);
       setMessage("❌ Server error. Try again later.");
     }
   };
