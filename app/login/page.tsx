@@ -1,80 +1,93 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ProductPage() {
+  const params = useParams();
+  const id = params?.id as string;
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
 
-  const handleLogin = async () => {
-    console.log("handleLogin running");
-console.log("API:", process.env.NEXT_PUBLIC_API_URL);
-    setMessage("Logging in...");
+  // 🔍 Fetch product
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/products`
+        );
+
+        const data = await res.json();
+
+        const found = data.find(
+          (p: any) => p.id === Number(id) || p._id === id
+        );
+
+        setProduct(found);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  // ✅ FIXED CHECKOUT FUNCTION
+  const handleOrder = async () => {
+    // 🔐 ALWAYS read directly from localStorage
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) {
+      setMessage("⚠️ Login required to place order");
+      return;
+    }
+
+    const user = JSON.parse(storedUser);
+
+    setMessage("Processing order...");
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({
+            productId: Number(id),
+            paymentMethod: "pay_now",
+            userEmail: user.email,
+          }),
         }
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage(data.error || "Login failed");
-        return;
+        setMessage(data.error || "Order failed");
+      } else {
+        setMessage("✅ " + data.message);
       }
-
-      // ✅ SAVE USER SESSION
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      setMessage("Login successful!");
-
-      // ✅ REDIRECT HOME
-      router.push("/");
-    } catch (err) {
-      setMessage("Server error");
+    } catch (error) {
+      setMessage("❌ Server error. Try again later.");
     }
   };
 
+  if (!product) return <h1>Loading...</h1>;
+
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Login</h1>
+    <div style={{ padding: "20px" }}>
+      <h1>{product.name}</h1>
+      <p>Category: {product.category}</p>
+      <p>Price: ${product.price}</p>
 
-      <input
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <br />
+      <button onClick={handleOrder}>
+        Confirm Order
+      </button>
 
-      <input
-        placeholder="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <br />
-
-      <button
-  onClick={() => {
-    console.log("CLICKED");
-    handleLogin();
-  }}
->
-  Login
-</button>
-
-      <p>{message}</p>
+      {message && <p>{message}</p>}
     </div>
   );
 }
