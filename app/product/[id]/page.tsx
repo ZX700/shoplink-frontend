@@ -10,7 +10,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
 
-  // 🔍 Fetch product
+  // 🔍 FETCH PRODUCT
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -19,7 +19,6 @@ export default function ProductPage() {
         );
 
         const data = await res.json();
-
         const products = Array.isArray(data) ? data : data.products;
 
         const found = products?.find(
@@ -28,34 +27,25 @@ export default function ProductPage() {
 
         setProduct(found);
       } catch (err) {
-        console.log("PRODUCT FETCH ERROR:", err);
+        console.log(err);
       }
     };
 
     fetchProduct();
   }, [id]);
 
-  // 🔐 CHECKOUT / ORDER FUNCTION (FIXED)
+  // 🔐 CHECKOUT (CLEAN VERSION)
   const handleOrder = async () => {
-    // always read directly from storage
     const storedUser = localStorage.getItem("user");
 
-    console.log("USER RAW:", storedUser);
+    console.log("STORED USER:", storedUser);
 
     if (!storedUser) {
-      setMessage("⚠️ Login required to place order");
+      setMessage("⚠️ Login required");
       return;
     }
 
-    let user;
-
-    try {
-      user = JSON.parse(storedUser);
-    } catch (err) {
-      console.error("USER PARSE ERROR:", err);
-      setMessage("Session error. Please login again.");
-      return;
-    }
+    const user = JSON.parse(storedUser);
 
     if (!user?.email) {
       setMessage("⚠️ Invalid session. Please login again.");
@@ -73,7 +63,7 @@ export default function ProductPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            productId: Number(id),
+            productId: id,
             paymentMethod: "pay_now",
             userEmail: user.email,
           }),
@@ -85,11 +75,11 @@ export default function ProductPage() {
       if (!res.ok) {
         setMessage(data.error || "Order failed");
       } else {
-        setMessage("✅ " + data.message);
+        setMessage("✅ Order placed successfully!");
       }
     } catch (error) {
-      console.error("ORDER ERROR:", error);
-      setMessage("❌ Server error. Try again later.");
+      console.log("ORDER ERROR:", error);
+      setMessage("❌ Server error");
     }
   };
 
@@ -98,8 +88,8 @@ export default function ProductPage() {
   return (
     <div style={{ padding: "20px" }}>
       <h1>{product.name}</h1>
-      <p>Category: {product.category}</p>
-      <p>Price: ${product.price}</p>
+      <p>{product.category}</p>
+      <p>${product.price}</p>
 
       <button onClick={handleOrder}>
         Confirm Order
