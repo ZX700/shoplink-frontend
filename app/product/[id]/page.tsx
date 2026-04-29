@@ -9,7 +9,17 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
+  const [user, setUser] = useState<any>(null);
 
+  // ✅ Load logged-in user from localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  // ✅ Fetch product
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -20,8 +30,9 @@ export default function ProductPage() {
         const data = await res.json();
 
         const found = data.find(
-  (p: any) => p.id === Number(id) || p._id === id
-);
+          (p: any) => p.id === Number(id) || p._id === id
+        );
+
         setProduct(found);
       } catch (err) {
         console.log(err);
@@ -31,7 +42,14 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
+  // ✅ FIXED CHECKOUT LOGIC
   const handleOrder = async () => {
+    // 🔐 Check if user is logged in
+    if (!user) {
+      setMessage("⚠️ Login required to place order");
+      return;
+    }
+
     setMessage("Processing order...");
 
     try {
@@ -45,6 +63,7 @@ export default function ProductPage() {
           body: JSON.stringify({
             productId: Number(id),
             paymentMethod: "pay_now",
+            userEmail: user.email, // optional but useful
           }),
         }
       );
@@ -54,10 +73,10 @@ export default function ProductPage() {
       if (!res.ok) {
         setMessage(data.error || "Order failed");
       } else {
-        setMessage(data.message);
+        setMessage("✅ " + data.message);
       }
     } catch (error) {
-      setMessage("Server error. Try again later.");
+      setMessage("❌ Server error. Try again later.");
     }
   };
 

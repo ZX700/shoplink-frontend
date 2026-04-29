@@ -11,6 +11,8 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
 
   const handleLogin = async () => {
+    console.log("handleLogin running");
+console.log("API:", process.env.NEXT_PUBLIC_API_URL);
     setMessage("Logging in...");
 
     try {
