@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-
+console.log("USER:", localStorage.getItem("user"));
 export default function ProductPage() {
   const params = useParams();
   const id = params?.id as string;
