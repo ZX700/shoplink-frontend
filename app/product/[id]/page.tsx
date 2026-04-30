@@ -40,6 +40,7 @@ export default function ProductPage() {
   // CHECKOUT FUNCTION (FINAL)
   // -------------------------
   const handleOrder = async () => {
+    setMessage("DEBUG TEST");
     const storedUser = localStorage.getItem("user");
 
     console.log("USER FROM STORAGE:", storedUser);
