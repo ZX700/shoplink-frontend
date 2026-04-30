@@ -44,6 +44,7 @@ export default function ProductPage() {
   }, [id]);
 
   const handleOrder = async () => {
+    alert("NEW CODE RUNNING");
     if (!user) {
       setMessage("⚠️ Login required");
       return;
