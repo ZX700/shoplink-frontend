@@ -9,52 +9,43 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // -------------------------
+  // ✅ LOAD USER SAFELY
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setMounted(true);
+  }, []);
+
   // FETCH PRODUCT
-  // -------------------------
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/products`
         );
-
         const data = await res.json();
-        const products = Array.isArray(data) ? data : data.products;
 
-        const found = products?.find(
+        const found = data.find(
           (p: any) => p.id === Number(id) || p._id === id
         );
 
         setProduct(found);
       } catch (err) {
-        console.log("PRODUCT FETCH ERROR:", err);
+        console.log(err);
       }
     };
 
     fetchProduct();
   }, [id]);
 
-  // -------------------------
-  // CHECKOUT FUNCTION (FINAL)
-  // -------------------------
   const handleOrder = async () => {
-    setMessage("DEBUG TEST");
-    const storedUser = localStorage.getItem("user");
-
-    console.log("USER FROM STORAGE:", storedUser);
-
-    if (!storedUser) {
-      setMessage("⚠️ You are not logged in");
-      return;
-    }
-
-    let user;
-    try {
-      user = JSON.parse(storedUser);
-    } catch {
-      setMessage("⚠️ Session corrupted. Login again.");
+    if (!user) {
+      setMessage("⚠️ Login required");
       return;
     }
 
@@ -78,25 +69,18 @@ export default function ProductPage() {
 
       const data = await res.json();
 
-      console.log("STATUS:", res.status);
-      console.log("RESPONSE:", data);
-
       if (!res.ok) {
-        // 🔥 SHOW REAL ERROR (NOT "login required")
-        setMessage(`❌ ${data.error || "Order failed"}`);
+        setMessage(data.error || "Order failed");
         return;
       }
 
       setMessage("✅ Order placed successfully!");
-    } catch (error) {
-      console.log("ORDER ERROR:", error);
-      setMessage("❌ Server connection failed");
+    } catch (err) {
+      setMessage("❌ Server error");
     }
   };
 
-  // -------------------------
-  // UI
-  // -------------------------
+  if (!mounted) return null; // 🔥 prevents SSR mismatch
   if (!product) return <h1>Loading...</h1>;
 
   return (
