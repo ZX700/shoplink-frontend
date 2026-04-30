@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-console.log("USER:", localStorage.getItem("user"));
+
 export default function ProductPage() {
   const params = useParams();
   const id = params?.id as string;
@@ -37,17 +37,25 @@ export default function ProductPage() {
   }, [id]);
 
   // -------------------------
-  // CHECKOUT FUNCTION (FIXED)
+  // CHECKOUT FUNCTION (FINAL)
   // -------------------------
   const handleOrder = async () => {
     const storedUser = localStorage.getItem("user");
 
+    console.log("USER FROM STORAGE:", storedUser);
+
     if (!storedUser) {
-      setMessage("⚠️ Login required");
+      setMessage("⚠️ You are not logged in");
       return;
     }
 
-    const user = JSON.parse(storedUser);
+    let user;
+    try {
+      user = JSON.parse(storedUser);
+    } catch {
+      setMessage("⚠️ Session corrupted. Login again.");
+      return;
+    }
 
     setMessage("Processing order...");
 
@@ -60,35 +68,28 @@ export default function ProductPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            productId: Number(id), // 🔥 FIXED TYPE ISSUE
+            productId: Number(id),
             paymentMethod: "pay_now",
             userEmail: user.email,
           }),
         }
       );
 
-      const text = await res.text();
+      const data = await res.json();
 
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.log("BAD RESPONSE:", text);
-        setMessage("Server error (invalid response)");
-        return;
-      }
-
-      console.log("ORDER RESPONSE:", data);
+      console.log("STATUS:", res.status);
+      console.log("RESPONSE:", data);
 
       if (!res.ok) {
-        setMessage(data.error || "Order failed");
+        // 🔥 SHOW REAL ERROR (NOT "login required")
+        setMessage(`❌ ${data.error || "Order failed"}`);
         return;
       }
 
       setMessage("✅ Order placed successfully!");
     } catch (error) {
       console.log("ORDER ERROR:", error);
-      setMessage("❌ Server error");
+      setMessage("❌ Server connection failed");
     }
   };
 
