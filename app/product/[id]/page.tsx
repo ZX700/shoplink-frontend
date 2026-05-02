@@ -1,133 +1,84 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function ProductPage() {
-  const params = useParams();
-  const id = params?.id as string;
+export default function LoginPage() {
+  const router = useRouter();
 
-  const [product, setProduct] = useState<any>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  // =========================
-  // 🔍 FETCH PRODUCT
-  // =========================
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/products`
-        );
+  const handleLogin = async (e: any) => {
+    e.preventDefault();
 
-        const data = await res.json();
-        const products = Array.isArray(data) ? data : data.products;
-
-        const found = products?.find(
-          (p: any) => p.id === Number(id) || p._id === id
-        );
-
-        console.log("PRODUCT FOUND:", found);
-
-        setProduct(found);
-      } catch (err) {
-        console.log("PRODUCT FETCH ERROR:", err);
-      }
-    };
-
-    fetchProduct();
-  }, [id]);
-
-  // =========================
-  // 🛒 HANDLE ORDER (FINAL FIX)
-  // =========================
-  const handleOrder = async () => {
-    const storedUser = localStorage.getItem("user");
-
-    console.log("STORED USER:", storedUser);
-
-    if (!storedUser) {
-      setMessage("⚠️ Login required");
-      return;
-    }
-
-    let user;
-    try {
-      user = JSON.parse(storedUser);
-    } catch (err) {
-      console.log("JSON PARSE ERROR:", err);
-      setMessage("⚠️ Invalid user data. Please login again.");
-      return;
-    }
-
-    console.log("PARSED USER:", user);
-
-    if (!user?.email) {
-      setMessage("⚠️ Invalid user. Please login again.");
-      return;
-    }
-
-    const bodyData = {
-      productId: Number(id),
-      paymentMethod: "pay_now",
-      userEmail: user.email,
-    };
-
-    console.log("SENDING:", bodyData);
-
-    setMessage("Processing order...");
+    setMessage("Logging in...");
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(bodyData),
+          body: JSON.stringify({ email, password }),
         }
       );
 
-      const text = await res.text();
+      const data = await res.json();
 
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.log("BAD RESPONSE:", text);
-        setMessage("❌ Server returned invalid response");
-        return;
-      }
-
-      console.log("RESPONSE:", data);
+      console.log("LOGIN RESPONSE:", data);
 
       if (!res.ok) {
-        setMessage(data.error || "❌ Order failed");
+        setMessage(data.error || "Login failed");
         return;
       }
 
-      setMessage("✅ Order placed successfully!");
-    } catch (error) {
-      console.log("ORDER ERROR:", error);
-      setMessage("❌ Server error");
+      // ✅ SAVE USER BEFORE REDIRECT
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      console.log("SAVED USER:", localStorage.getItem("user"));
+
+      setMessage("✅ Login successful");
+
+      // 🔥 SMALL DELAY ensures storage completes before redirect
+      setTimeout(() => {
+        router.push("/");
+      }, 500);
+
+    } catch (err) {
+      console.log("LOGIN ERROR:", err);
+      setMessage("Server error");
     }
   };
 
-  // =========================
-  // UI
-  // =========================
-  if (!product) return <h1>Loading...</h1>;
-
   return (
     <div style={{ padding: "20px" }}>
-      <h1>{product.name}</h1>
-      <p>{product.category}</p>
-      <p>${product.price}</p>
+      <h1>Login</h1>
 
-      <button onClick={handleOrder}>
-        Confirm Order
-      </button>
+      <form onSubmit={handleLogin}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <br /><br />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <br /><br />
+
+        <button type="submit">Login</button>
+      </form>
 
       {message && <p>{message}</p>}
     </div>
