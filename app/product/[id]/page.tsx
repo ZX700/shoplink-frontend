@@ -9,26 +9,8 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState<any>(null); // ✅ NEW
 
-  // =========================
-  // LOAD USER FROM LOCALSTORAGE
-  // =========================
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setUser(parsed);
-        console.log("USER LOADED:", parsed);
-      } catch (err) {
-        console.log("USER PARSE ERROR:", err);
-      }
-    } else {
-      console.log("NO USER FOUND");
-    }
-  }, []);
+  const API_URL = "https://shoplink-backend-eiik.onrender.com"; // 🔥 HARDCODED
 
   // =========================
   // FETCH PRODUCT
@@ -36,20 +18,20 @@ export default function ProductPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/products`
-        );
-
+        const res = await fetch(`${API_URL}/api/products`);
         const data = await res.json();
+
         const products = Array.isArray(data) ? data : data.products;
 
         const found = products?.find(
           (p: any) => p.id === Number(id) || p._id === id
         );
 
+        console.log("PRODUCT:", found);
+
         setProduct(found);
       } catch (err) {
-        console.log("PRODUCT ERROR:", err);
+        console.log("FETCH ERROR:", err);
       }
     };
 
@@ -57,61 +39,61 @@ export default function ProductPage() {
   }, [id]);
 
   // =========================
-  // FINAL CHECKOUT FIX
+  // CHECKOUT
   // =========================
   const handleOrder = async () => {
-    console.log("USER STATE:", user);
+    const storedUser = localStorage.getItem("user");
 
-    if (!user || !user.email) {
+    console.log("RAW USER:", storedUser);
+
+    if (!storedUser) {
       setMessage("⚠️ Login required");
       return;
     }
 
-    const bodyData = {
+    const user = JSON.parse(storedUser);
+
+    console.log("PARSED USER:", user);
+
+    const payload = {
       productId: Number(id),
       paymentMethod: "pay_now",
       userEmail: user.email,
     };
 
-    console.log("SENDING:", bodyData);
+    console.log("PAYLOAD:", payload);
 
-    setMessage("Processing order...");
+    setMessage("Processing...");
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(bodyData),
-        }
-      );
+      const res = await fetch(`${API_URL}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
 
-      console.log("RESPONSE:", data);
+      console.log("SERVER RESPONSE:", data);
 
       if (!res.ok) {
         setMessage(data.error || "Order failed");
         return;
       }
 
-      setMessage("✅ Order placed successfully!");
+      setMessage("✅ Order placed!");
     } catch (err) {
-      console.log("ORDER ERROR:", err);
-      setMessage("❌ Server error");
+      console.log("ERROR:", err);
+      setMessage("Server error");
     }
   };
 
-  // =========================
-  // UI
-  // =========================
   if (!product) return <h1>Loading...</h1>;
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: 20 }}>
       <h1>{product.name}</h1>
       <p>{product.category}</p>
       <p>${product.price}</p>
