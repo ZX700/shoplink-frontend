@@ -1,3 +1,4 @@
+console.log("🔥 BUILD CHECK 123");
 "use client";
 
 import { useState, useEffect } from "react";
