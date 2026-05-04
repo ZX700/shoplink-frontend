@@ -1,6 +1,6 @@
-console.log("🔥 BUILD CHECK 123");
-"use client";
 
+"use client";
+console.log("🔥 BUILD CHECK 123");
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 
