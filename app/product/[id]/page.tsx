@@ -1,6 +1,5 @@
-
 "use client";
-console.log("🔥 BUILD CHECK 123");
+
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 
@@ -11,7 +10,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
 
-  const API_URL = "https://shoplink-backend-eiik.onrender.com"; // 🔥 HARDCODED
+  const API_URL = "https://shoplink-backend-eiik.onrender.com";
 
   // =========================
   // FETCH PRODUCT
@@ -28,11 +27,10 @@ export default function ProductPage() {
           (p: any) => p.id === Number(id) || p._id === id
         );
 
-        console.log("PRODUCT:", found);
-
         setProduct(found);
       } catch (err) {
         console.log("FETCH ERROR:", err);
+        setMessage("Failed to load product");
       }
     };
 
@@ -40,53 +38,38 @@ export default function ProductPage() {
   }, [id]);
 
   // =========================
-  // CHECKOUT
+  // STRIPE CHECKOUT (STEP 4 FIX)
   // =========================
-  const handleOrder = async () => {
-    const storedUser = localStorage.getItem("user");
-
-    console.log("RAW USER:", storedUser);
-
-    if (!storedUser) {
-      setMessage("⚠️ Login required");
+  const handleCheckout = async () => {
+    if (!product) {
+      setMessage("Product not loaded");
       return;
     }
 
-    const user = JSON.parse(storedUser);
-
-    console.log("PARSED USER:", user);
-
-    const payload = {
-      productId: Number(id),
-      paymentMethod: "pay_now",
-      userEmail: user.email,
-    };
-
-    console.log("PAYLOAD:", payload);
-
-    setMessage("Processing...");
+    setMessage("Redirecting to payment...");
 
     try {
-      const res = await fetch(`${API_URL}/api/orders`, {
+      const res = await fetch(`${API_URL}/api/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ product }),
       });
 
       const data = await res.json();
 
-      console.log("SERVER RESPONSE:", data);
+      console.log("CHECKOUT RESPONSE:", data);
 
       if (!res.ok) {
-        setMessage(data.error || "Order failed");
+        setMessage(data.error || "Checkout failed");
         return;
       }
 
-      setMessage("✅ Order placed!");
+      // 🔥 Redirect to Stripe Checkout
+      window.location.href = data.url;
     } catch (err) {
-      console.log("ERROR:", err);
+      console.log("CHECKOUT ERROR:", err);
       setMessage("Server error");
     }
   };
@@ -99,8 +82,17 @@ export default function ProductPage() {
       <p>{product.category}</p>
       <p>${product.price}</p>
 
-      <button onClick={handleOrder}>
-        Confirm Order
+      <button
+        onClick={handleCheckout}
+        style={{
+          padding: "10px 20px",
+          background: "black",
+          color: "white",
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
+        Checkout
       </button>
 
       {message && <p>{message}</p>}
