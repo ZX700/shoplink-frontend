@@ -60,10 +60,8 @@ export default function LoginPage() {
       }
 
       // SAVE USER
-      localStorage.setItem(
-        "user",
-        JSON.stringify(data.user)
-      );
+      localStorage.setItem("token", data.token);
+localStorage.setItem("user", JSON.stringify(data.user));
 
       console.log(
         "SAVED USER:",
