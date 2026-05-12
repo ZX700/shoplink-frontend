@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -11,71 +10,114 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  // ✅ FIXED LOGIN HANDLER
+  // DEBUG
+  useEffect(() => {
+    console.log(
+      "API URL:",
+      process.env.NEXT_PUBLIC_API_URL
+    );
+
+    console.log(
+      "LOCAL USER:",
+      localStorage.getItem("user")
+    );
+  }, []);
+
   const handleLogin = async () => {
     setMessage("Logging in...");
 
     try {
+      console.log("LOGIN START");
+
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL;
+
+      console.log("API URL USED:", apiUrl);
+
       const res = await fetch(
-        "http://localhost:5000/api/auth/login",
+        `${apiUrl}/api/auth/login`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({
+            email,
+            password,
+          }),
         }
       );
 
-      const text = await res.text();
+      console.log("RAW RESPONSE:", res);
 
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (err) {
-        console.error("Invalid response from server:", text);
-        setMessage("Server error: invalid response");
-        return;
-      }
+      const data = await res.json();
+
+      console.log("LOGIN DATA:", data);
 
       if (!res.ok) {
         setMessage(data.error || "Login failed");
         return;
       }
 
-      // ✅ SAVE USER SESSION
-      localStorage.setItem("user", JSON.stringify(data.user));
+      // SAVE USER
+      localStorage.setItem(
+        "user",
+        JSON.stringify(data.user)
+      );
+
+      console.log(
+        "SAVED USER:",
+        localStorage.getItem("user")
+      );
 
       setMessage("Login successful!");
 
-      // ✅ REDIRECT AFTER LOGIN
-      router.push("/");
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
+
     } catch (error) {
-      console.error("Login error:", error);
-      setMessage("Server error. Try again.");
+      console.error("LOGIN ERROR:", error);
+
+      setMessage("Server error");
     }
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: "20px" }}>
       <h1>Login</h1>
 
       <input
+        name="email"
+        id="email"
+        type="email"
         placeholder="Email"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) =>
+          setEmail(e.target.value)
+        }
       />
+
+      <br />
       <br />
 
       <input
-        placeholder="Password"
+        name="password"
+        id="password"
         type="password"
+        placeholder="Password"
         value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        onChange={(e) =>
+          setPassword(e.target.value)
+        }
       />
+
+      <br />
       <br />
 
-      <button onClick={handleLogin}>Login</button>
+      <button onClick={handleLogin}>
+        Login
+      </button>
 
       <p>{message}</p>
     </div>
