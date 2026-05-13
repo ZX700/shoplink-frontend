@@ -21,21 +21,13 @@ export default function Home() {
   const API_URL =
     "https://shoplink-backend-eiik.onrender.com";
 
-  // =========================
-  // FETCH PRODUCTS
-  // =========================
   useEffect(() => {
     fetch(`${API_URL}/api/products`)
       .then((res) => res.json())
       .then(setProducts)
-      .catch((err) =>
-        console.log("PRODUCT ERROR:", err)
-      );
+      .catch(console.log);
   }, []);
 
-  // =========================
-  // ADD TO CART
-  // =========================
   const addToCart = (product: Product) => {
     setCart((prev) => {
       const exists = prev.find(
@@ -50,36 +42,24 @@ export default function Home() {
         );
       }
 
-      return [
-        ...prev,
-        { ...product, qty: 1 },
-      ];
+      return [...prev, { ...product, qty: 1 }];
     });
 
     setOpenCart(true);
   };
 
-  // =========================
-  // REMOVE ITEM
-  // =========================
   const removeFromCart = (_id: string) => {
     setCart((prev) =>
       prev.filter((p) => p._id !== _id)
     );
   };
 
-  // =========================
-  // TOTAL PRICE
-  // =========================
   const total = cart.reduce(
     (sum, item) =>
       sum + item.price * item.qty,
     0
   );
 
-  // =========================
-  // CHECKOUT (FIXED OPTION 1)
-  // =========================
   const checkout = async () => {
     const token =
       localStorage.getItem("token");
@@ -90,9 +70,6 @@ export default function Home() {
       return;
     }
 
-    if (!cart.length) return;
-
-    // Convert cart → single Stripe product
     const product = {
       name: cart
         .map((i) => i.name)
@@ -101,46 +78,30 @@ export default function Home() {
       category: "Cart Order",
     };
 
-    try {
-      const res = await fetch(
-        `${API_URL}/api/checkout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            product,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      console.log("CHECKOUT RESPONSE:", data);
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(
-          data.error ||
-            "Checkout failed"
-        );
+    const res = await fetch(
+      `${API_URL}/api/checkout`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ product }),
       }
-    } catch (err) {
-      console.log(
-        "CHECKOUT ERROR:",
-        err
+    );
+
+    const data = await res.json();
+
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert(
+        data.error || "Checkout failed"
       );
-      alert("Server error");
     }
   };
 
-  // =========================
-  // UI
-  // =========================
   return (
     <div className="page">
       {/* NAV */}
@@ -152,7 +113,7 @@ export default function Home() {
         <button
           className="cartBtn"
           onClick={() =>
-            setOpenCart(!openCart)
+            setOpenCart(true)
           }
         >
           🛒 Cart ({cart.length})
@@ -164,9 +125,6 @@ export default function Home() {
         <h2>
           Discover Premium Products
         </h2>
-        <p>
-          Quality items at unbeatable prices
-        </p>
       </div>
 
       {/* PRODUCTS */}
@@ -176,15 +134,11 @@ export default function Home() {
             key={p._id}
             className="card"
           >
-            <div className="imgWrap">
-              <img src={p.image} />
-            </div>
+            <img src={p.image} />
 
             <div className="info">
               <h3>{p.name}</h3>
-              <p className="price">
-                ${p.price}
-              </p>
+              <p>${p.price}</p>
 
               <button
                 onClick={() =>
@@ -198,7 +152,17 @@ export default function Home() {
         ))}
       </div>
 
-      {/* CART */}
+      {/* BACKDROP (FIXED LAYERING) */}
+      {openCart && (
+        <div
+          className="backdrop"
+          onClick={() =>
+            setOpenCart(false)
+          }
+        />
+      )}
+
+      {/* CART (FIXED Z-INDEX + CLICKABILITY) */}
       <div
         className={`cart ${
           openCart ? "show" : ""
@@ -248,8 +212,7 @@ export default function Home() {
 
         <div className="total">
           <h3>
-            Total: $
-            {total.toFixed(2)}
+            Total: ${total.toFixed(2)}
           </h3>
 
           <button
@@ -261,17 +224,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* BACKDROP */}
-      {openCart && (
-        <div
-          className="backdrop"
-          onClick={() =>
-            setOpenCart(false)
-          }
-        />
-      )}
-
-      {/* STYLES */}
+      {/* STYLES (FIXED Z-INDEX SYSTEM) */}
       <style jsx>{`
         .page {
           font-family: system-ui;
@@ -284,6 +237,9 @@ export default function Home() {
           justify-content: space-between;
           padding: 18px;
           background: white;
+          position: sticky;
+          top: 0;
+          z-index: 5;
         }
 
         .cartBtn {
@@ -292,6 +248,7 @@ export default function Home() {
           padding: 10px;
           border-radius: 10px;
           border: none;
+          cursor: pointer;
         }
 
         .grid {
@@ -310,7 +267,7 @@ export default function Home() {
           overflow: hidden;
         }
 
-        .imgWrap img {
+        .card img {
           width: 100%;
           height: 180px;
           object-fit: cover;
@@ -320,37 +277,84 @@ export default function Home() {
           padding: 12px;
         }
 
-        .price {
-          color: blue;
-          font-weight: bold;
+        .info button {
+          width: 100%;
+          padding: 10px;
+          background: #2563eb;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
         }
 
+        /* BACKDROP (LOWER THAN CART) */
+        .backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
+          z-index: 20;
+        }
+
+        /* CART (HIGHER THAN EVERYTHING) */
         .cart {
           position: fixed;
-          right: -400px;
+          right: -380px;
           top: 0;
-          width: 320px;
+          width: 340px;
           height: 100%;
           background: white;
-          transition: 0.3s;
+          transition: 0.3s ease;
+          z-index: 30;
+          display: flex;
+          flex-direction: column;
+          box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
         }
 
         .cart.show {
           right: 0;
         }
 
-        .total button {
-          width: 100%;
-          background: black;
-          color: white;
-          padding: 10px;
-          border: none;
+        .cartHeader {
+          display: flex;
+          justify-content: space-between;
+          padding: 15px;
+          border-bottom: 1px solid #eee;
         }
 
-        .backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.4);
+        .cartItem {
+          display: flex;
+          justify-content: space-between;
+          padding: 10px;
+          border-bottom: 1px solid #eee;
+        }
+
+        .cartItem button {
+          background: red;
+          color: white;
+          border: none;
+          padding: 5px;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+
+        .total {
+          margin-top: auto;
+          padding: 15px;
+        }
+
+        .total button {
+          width: 100%;
+          padding: 12px;
+          background: black;
+          color: white;
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+        }
+
+        .empty {
+          padding: 20px;
+          color: #777;
         }
       `}</style>
     </div>
