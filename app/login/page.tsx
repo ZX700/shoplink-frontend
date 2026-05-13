@@ -10,112 +10,94 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
+  // =========================
   // DEBUG
+  // =========================
   useEffect(() => {
-    console.log(
-      "API URL:",
-      process.env.NEXT_PUBLIC_API_URL
-    );
-
-    console.log(
-      "LOCAL USER:",
-      localStorage.getItem("user")
-    );
+    console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
+    console.log("LOCAL USER:", localStorage.getItem("user"));
   }, []);
 
+  // =========================
+  // LOGIN
+  // =========================
   const handleLogin = async () => {
     setMessage("Logging in...");
 
     try {
-      console.log("LOGIN START");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) {
+        setMessage("API URL not configured");
+        return;
+      }
 
-      console.log("API URL USED:", apiUrl);
-
-      const res = await fetch(
-        `${apiUrl}/api/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
-
-      console.log("RAW RESPONSE:", res);
+      const res = await fetch(`${apiUrl}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
       const data = await res.json();
 
-      console.log("LOGIN DATA:", data);
+      console.log("LOGIN RESPONSE:", data);
 
       if (!res.ok) {
         setMessage(data.error || "Login failed");
         return;
       }
 
-      // SAVE USER
-      localStorage.setItem("token", data.token);
-localStorage.setItem("user", JSON.stringify(data.user));
+      // =========================
+      // STORE USER (ONLY AUTH YOU HAVE)
+      // =========================
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-      console.log(
-        "SAVED USER:",
-        localStorage.getItem("user")
-      );
+      // IMPORTANT: backend does NOT return token yet
+      // so we DO NOT store token to avoid confusion
+
+      console.log("SAVED USER:", localStorage.getItem("user"));
 
       setMessage("Login successful!");
 
       setTimeout(() => {
         router.push("/");
-      }, 1000);
-
+      }, 800);
     } catch (error) {
       console.error("LOGIN ERROR:", error);
-
       setMessage("Server error");
     }
   };
 
+  // =========================
+  // UI
+  // =========================
   return (
     <div style={{ padding: "20px" }}>
       <h1>Login</h1>
 
       <input
-        name="email"
-        id="email"
         type="email"
         placeholder="Email"
         value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
+        onChange={(e) => setEmail(e.target.value)}
       />
 
       <br />
       <br />
 
       <input
-        name="password"
-        id="password"
         type="password"
         placeholder="Password"
         value={password}
-        onChange={(e) =>
-          setPassword(e.target.value)
-        }
+        onChange={(e) => setPassword(e.target.value)}
       />
 
       <br />
       <br />
 
-      <button onClick={handleLogin}>
-        Login
-      </button>
+      <button onClick={handleLogin}>Login</button>
 
       <p>{message}</p>
     </div>

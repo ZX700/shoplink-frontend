@@ -9,6 +9,7 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const API_URL = "https://shoplink-backend-eiik.onrender.com";
 
@@ -18,19 +19,30 @@ export default function ProductPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
+        setLoading(true);
+
         const res = await fetch(`${API_URL}/api/products`);
         const data = await res.json();
 
-        const products = Array.isArray(data) ? data : data.products;
+        const products = Array.isArray(data)
+          ? data
+          : data.products || [];
 
-        const found = products?.find(
-          (p: any) => p.id === Number(id) || p._id === id
-        );
+        const found = products.find((p: any) => {
+          return (
+            String(p.id) === String(id) ||
+            String(p._id) === String(id)
+          );
+        });
 
-        setProduct(found);
+        console.log("🔎 FOUND PRODUCT:", found);
+
+        setProduct(found || null);
       } catch (err) {
         console.log("FETCH ERROR:", err);
         setMessage("Failed to load product");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -38,35 +50,55 @@ export default function ProductPage() {
   }, [id]);
 
   // =========================
-  // STRIPE CHECKOUT (STEP 4 FIX)
+  // CHECKOUT
   // =========================
   const handleCheckout = async () => {
     if (!product) {
-      setMessage("Product not loaded");
+      setMessage("Product not available");
       return;
     }
 
     setMessage("Redirecting to payment...");
 
     try {
+      const payload = {
+        product: {
+          id: product.id || product._id,
+          name: product.name,
+          price: product.price,
+          category: product.category,
+        },
+        userEmail:
+          typeof window !== "undefined"
+            ? JSON.parse(localStorage.getItem("user") || "{}")?.email
+            : null,
+      };
+
+      console.log("📦 CHECKOUT PAYLOAD:", payload);
+
       const res = await fetch(`${API_URL}/api/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ product }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
-      console.log("CHECKOUT RESPONSE:", data);
+      console.log("📨 CHECKOUT RESPONSE:", data);
 
       if (!res.ok) {
         setMessage(data.error || "Checkout failed");
         return;
       }
 
-      // 🔥 Redirect to Stripe Checkout
+      if (!data.url) {
+        setMessage("No checkout URL returned");
+        return;
+      }
+
+      // 🔥 Redirect to Stripe
       window.location.href = data.url;
     } catch (err) {
       console.log("CHECKOUT ERROR:", err);
@@ -74,7 +106,13 @@ export default function ProductPage() {
     }
   };
 
-  if (!product) return <h1>Loading...</h1>;
+  // =========================
+  // UI STATES
+  // =========================
+  if (loading) return <h1>Loading...</h1>;
+
+  if (!product)
+    return <h1 style={{ padding: 20 }}>Product not found</h1>;
 
   return (
     <div style={{ padding: 20 }}>
