@@ -1,107 +1,231 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
   const router = useRouter();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [password, setPassword] =
+    useState("");
 
-  // DEBUG
-  useEffect(() => {
-    console.log(
-      "SIGNUP API URL:",
-      process.env.NEXT_PUBLIC_API_URL
-    );
-  }, []);
+  const [message, setMessage] =
+    useState("");
 
+  const [loading, setLoading] =
+    useState(false);
+
+  // =========================
+  // SIGNUP
+  // =========================
   const handleSignup = async () => {
-    setMessage("Creating account...");
-
     try {
+      setLoading(true);
+      setMessage("");
+
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL;
 
-      console.log("USING API:", apiUrl);
+      if (!apiUrl) {
+        setMessage("API URL missing");
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch(
-        `${apiUrl}/api/auth/signup`,
+        `${apiUrl}/api/auth/register`,
         {
           method: "POST",
+
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
+
           body: JSON.stringify({
+            name,
             email,
             password,
           }),
         }
       );
 
-      console.log("SIGNUP RESPONSE:", res);
-
       const data = await res.json();
 
-      console.log("SIGNUP DATA:", data);
+      console.log(
+        "SIGNUP RESPONSE:",
+        data
+      );
 
+      // =========================
+      // ERROR
+      // =========================
       if (!res.ok) {
-        setMessage(data.error || "Signup failed");
+        setMessage(
+          data.error || "Signup failed"
+        );
+
+        setLoading(false);
         return;
       }
 
-      setMessage("Signup successful!");
+      // =========================
+      // SAVE TOKEN + USER
+      // =========================
+      localStorage.setItem(
+        "token",
+        data.token
+      );
 
+      localStorage.setItem(
+        "user",
+        JSON.stringify(data.user)
+      );
+
+      setMessage(
+        "Signup successful!"
+      );
+
+      // =========================
+      // REDIRECT
+      // =========================
       setTimeout(() => {
-        router.push("/login");
-      }, 1000);
+        router.push("/");
+      }, 800);
 
     } catch (err) {
-      console.error("SIGNUP ERROR:", err);
+      console.error(
+        "SIGNUP ERROR:",
+        err
+      );
 
       setMessage("Server error");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // =========================
+  // UI
+  // =========================
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Sign Up</h1>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "#f5f7fb",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: 350,
+          background: "white",
+          padding: 30,
+          borderRadius: 16,
+          boxShadow:
+            "0 10px 30px rgba(0,0,0,0.08)",
+        }}
+      >
+        <h1
+          style={{
+            marginBottom: 20,
+            textAlign: "center",
+          }}
+        >
+          Create Account
+        </h1>
 
-      <input
-        id="email"
-        name="email"
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
-      />
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={(e) =>
+            setName(e.target.value)
+          }
+          style={{
+            width: "100%",
+            padding: 12,
+            marginBottom: 15,
+            borderRadius: 10,
+            border: "1px solid #ddd",
+          }}
+        />
 
-      <br />
-      <br />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) =>
+            setEmail(e.target.value)
+          }
+          style={{
+            width: "100%",
+            padding: 12,
+            marginBottom: 15,
+            borderRadius: 10,
+            border: "1px solid #ddd",
+          }}
+        />
 
-      <input
-        id="password"
-        name="password"
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) =>
-          setPassword(e.target.value)
-        }
-      />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) =>
+            setPassword(e.target.value)
+          }
+          style={{
+            width: "100%",
+            padding: 12,
+            marginBottom: 20,
+            borderRadius: 10,
+            border: "1px solid #ddd",
+          }}
+        />
 
-      <br />
-      <br />
+        <button
+          onClick={handleSignup}
+          disabled={loading}
+          style={{
+            width: "100%",
+            padding: 12,
+            border: "none",
+            borderRadius: 10,
+            background: loading
+              ? "#999"
+              : "#111",
+            color: "white",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          {loading
+            ? "Creating..."
+            : "Sign Up"}
+        </button>
 
-      <button onClick={handleSignup}>
-        Sign Up
-      </button>
-
-      <p>{message}</p>
+        {message && (
+          <p
+            style={{
+              marginTop: 15,
+              textAlign: "center",
+              color:
+                message.includes(
+                  "successful"
+                )
+                  ? "green"
+                  : "red",
+            }}
+          >
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
