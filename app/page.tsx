@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Product = {
@@ -8,14 +8,10 @@ type Product = {
   name: string;
   price: number;
   image: string;
-  description?: string;
   category?: string;
-
-  // seller info
+  description?: string;
   sellerName?: string;
-  bankName?: string;
-  accountNumber?: string;
-  accountName?: string;
+  stock?: number;
 };
 
 type CartItem = Product & {
@@ -25,11 +21,22 @@ type CartItem = Product & {
 export default function Home() {
   const router = useRouter();
 
+  // =========================
+  // STATE
+  // =========================
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [openCart, setOpenCart] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
+  // SEARCH + FILTER
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+
+  // USER
   const [user, setUser] = useState<any>(null);
 
   const API_URL =
@@ -37,21 +44,10 @@ export default function Home() {
     "https://shoplink-backend-eiik.onrender.com";
 
   // =========================
-  // LOAD USER
-  // =========================
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  // =========================
   // FETCH PRODUCTS
   // =========================
   useEffect(() => {
-    const loadProducts = async () => {
+    const fetchProducts = async () => {
       try {
         const res = await fetch(
           `${API_URL}/api/products`
@@ -59,21 +55,63 @@ export default function Home() {
 
         const data = await res.json();
 
-        if (Array.isArray(data)) {
-          setProducts(data);
-        } else {
-          setProducts(data.products || []);
-        }
+        const productList = Array.isArray(data)
+          ? data
+          : data.products || [];
+
+        setProducts(productList);
+        setFilteredProducts(productList);
       } catch (err) {
-        console.error(
-          "PRODUCT FETCH ERROR:",
-          err
-        );
+        console.log("PRODUCT FETCH ERROR:", err);
       }
     };
 
-    loadProducts();
-  }, [API_URL]);
+    fetchProducts();
+
+    // LOAD USER
+    const storedUser =
+      localStorage.getItem("user");
+
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  // =========================
+  // FILTER PRODUCTS
+  // =========================
+  useEffect(() => {
+    let updated = [...products];
+
+    // SEARCH
+    if (search.trim()) {
+      updated = updated.filter((p) =>
+        p.name
+          ?.toLowerCase()
+          .includes(search.toLowerCase())
+      );
+    }
+
+    // CATEGORY
+    if (category !== "All") {
+      updated = updated.filter(
+        (p) => p.category === category
+      );
+    }
+
+    setFilteredProducts(updated);
+  }, [search, category, products]);
+
+  // =========================
+  // UNIQUE CATEGORIES
+  // =========================
+  const categories = useMemo(() => {
+    const cats = products
+      .map((p) => p.category)
+      .filter(Boolean);
+
+    return ["All", ...new Set(cats)];
+  }, [products]);
 
   // =========================
   // ADD TO CART
@@ -108,7 +146,7 @@ export default function Home() {
   };
 
   // =========================
-  // REMOVE FROM CART
+  // REMOVE CART ITEM
   // =========================
   const removeFromCart = (_id: string) => {
     setCart((prev) =>
@@ -137,7 +175,6 @@ export default function Home() {
 
       if (!token) {
         alert("Login required");
-
         router.push("/login");
         return;
       }
@@ -155,7 +192,6 @@ export default function Home() {
           headers: {
             "Content-Type":
               "application/json",
-
             Authorization: `Bearer ${token}`,
           },
 
@@ -167,23 +203,18 @@ export default function Home() {
 
       const data = await res.json();
 
-      console.log("CHECKOUT:", data);
-
       if (!res.ok) {
         alert(
           data.error || "Checkout failed"
         );
-
         return;
       }
 
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        alert("Stripe URL missing");
       }
     } catch (err) {
-      console.error(
+      console.log(
         "CHECKOUT ERROR:",
         err
       );
@@ -195,47 +226,31 @@ export default function Home() {
   };
 
   // =========================
-  // LOGOUT
+  // UI
   // =========================
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
-    window.location.reload();
-  };
-
   return (
     <div className="page">
-
-      {/* ========================= */}
       {/* NAVBAR */}
-      {/* ========================= */}
       <div className="nav">
-        <h1 className="logo">
-          ShopLink
-        </h1>
+        <div className="leftNav">
+          <h1
+            className="logo"
+            onClick={() => router.push("/")}
+          >
+            ShopLink
+          </h1>
+        </div>
 
-        <div className="navRight">
-
-          {/* USER */}
+        <div className="rightNav">
           {user ? (
-            <>
-              <button
-                className="navBtn"
-                onClick={() =>
-                  router.push("/seller")
-                }
-              >
-                Account
-              </button>
-
-              <button
-                className="logoutBtn"
-                onClick={logout}
-              >
-                Logout
-              </button>
-            </>
+            <button
+              className="accountBtn"
+              onClick={() =>
+                router.push("/seller")
+              }
+            >
+              Account
+            </button>
           ) : (
             <>
               <button
@@ -248,17 +263,16 @@ export default function Home() {
               </button>
 
               <button
-                className="navBtn"
+                className="navBtn dark"
                 onClick={() =>
                   router.push("/signup")
                 }
               >
-                Signup
+                Sign Up
               </button>
             </>
           )}
 
-          {/* CART */}
           <button
             className="cartBtn"
             onClick={() =>
@@ -270,97 +284,115 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ========================= */}
       {/* HERO */}
-      {/* ========================= */}
       <div className="hero">
         <h2>
-          Discover Products From Sellers
+          Discover Amazing Products
         </h2>
 
         <p>
-          Upload, sell and shop instantly
+          Buy and sell products easily
         </p>
       </div>
 
-      {/* ========================= */}
+      {/* SEARCH + FILTER */}
+      <div className="controls">
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+        />
+
+        <select
+          value={category}
+          onChange={(e) =>
+            setCategory(e.target.value)
+          }
+        >
+          {categories.map((cat, index) => (
+            <option
+              key={index}
+              value={cat}
+            >
+              {cat}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* PRODUCTS */}
-      {/* ========================= */}
       <div className="grid">
-        {products.map((p) => (
-          <div
-            key={p._id}
-            className="card"
-          >
-            <img
-              src={p.image}
-              alt={p.name}
-            />
+        {filteredProducts.length === 0 ? (
+          <div className="emptyProducts">
+            No products found
+          </div>
+        ) : (
+          filteredProducts.map((p) => (
+            <div
+              key={p._id}
+              className="card"
+            >
+              <img
+                src={
+                  p.image ||
+                  "https://via.placeholder.com/300"
+                }
+                alt={p.name}
+                onClick={() =>
+                  router.push(
+                    `/product/${p._id}`
+                  )
+                }
+              />
 
-            <div className="info">
+              <div className="info">
+                <h3>{p.name}</h3>
 
-              <h3>{p.name}</h3>
-
-              <p className="price">
-                ${p.price}
-              </p>
-
-              {p.description && (
-                <p className="desc">
-                  {p.description}
+                <p className="price">
+                  ${p.price}
                 </p>
-              )}
 
-              {p.category && (
                 <p className="category">
                   {p.category}
                 </p>
-              )}
 
-              {/* SELLER DETAILS */}
-              <div className="sellerBox">
-                <h4>Seller Info</h4>
+                {p.sellerName && (
+                  <p className="seller">
+                    Seller: {p.sellerName}
+                  </p>
+                )}
 
-                <p>
-                  <b>Store:</b>{" "}
-                  {p.sellerName ||
-                    "Unknown"}
-                </p>
+                <div className="actions">
+                  <button
+                    className="viewBtn"
+                    onClick={() =>
+                      router.push(
+                        `/product/${p._id}`
+                      )
+                    }
+                  >
+                    View
+                  </button>
 
-                <p>
-                  <b>Bank:</b>{" "}
-                  {p.bankName || "N/A"}
-                </p>
-
-                <p>
-                  <b>Account:</b>{" "}
-                  {p.accountNumber ||
-                    "N/A"}
-                </p>
-
-                <p>
-                  <b>Name:</b>{" "}
-                  {p.accountName ||
-                    "N/A"}
-                </p>
+                  <button
+                    className="cartAddBtn"
+                    onClick={() =>
+                      addToCart(p)
+                    }
+                  >
+                    Add to Cart
+                  </button>
+                </div>
               </div>
-
-              <button
-                className="addBtn"
-                onClick={() =>
-                  addToCart(p)
-                }
-              >
-                Add to Cart
-              </button>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      {/* ========================= */}
       {/* BACKDROP */}
-      {/* ========================= */}
       {openCart && (
         <div
           className="backdrop"
@@ -370,9 +402,7 @@ export default function Home() {
         />
       )}
 
-      {/* ========================= */}
       {/* CART */}
-      {/* ========================= */}
       <div
         className={`cart ${
           openCart ? "show" : ""
@@ -390,68 +420,66 @@ export default function Home() {
           </button>
         </div>
 
-        {cart.length === 0 ? (
-          <p className="empty">
-            Cart is empty
-          </p>
-        ) : (
-          <>
-            <div className="cartItems">
-              {cart.map((item) => (
-                <div
-                  key={item._id}
-                  className="cartItem"
-                >
-                  <div>
-                    <h4>{item.name}</h4>
-
-                    <p>
-                      {item.qty} × $
-                      {item.price}
-                    </p>
-                  </div>
-
-                  <button
-                    className="removeBtn"
-                    onClick={() =>
-                      removeFromCart(
-                        item._id
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className="cartBottom">
-              <h3>
-                Total: $
-                {total.toFixed(2)}
-              </h3>
-
-              <button
-                className="checkoutBtn"
-                onClick={checkout}
-                disabled={loading}
+        <div className="cartItems">
+          {cart.length === 0 ? (
+            <p className="empty">
+              Cart is empty
+            </p>
+          ) : (
+            cart.map((item) => (
+              <div
+                key={item._id}
+                className="cartItem"
               >
-                {loading
-                  ? "Processing..."
-                  : "Checkout"}
-              </button>
-            </div>
-          </>
-        )}
+                <div>
+                  <h4>{item.name}</h4>
+
+                  <p>
+                    {item.qty} × $
+                    {item.price}
+                  </p>
+                </div>
+
+                <button
+                  className="removeBtn"
+                  onClick={() =>
+                    removeFromCart(
+                      item._id
+                    )
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="checkoutBox">
+          <h3>
+            Total: $
+            {total.toFixed(2)}
+          </h3>
+
+          <button
+            className="checkoutBtn"
+            onClick={checkout}
+            disabled={
+              loading || cart.length === 0
+            }
+          >
+            {loading
+              ? "Processing..."
+              : "Checkout"}
+          </button>
+        </div>
       </div>
 
-      {/* ========================= */}
       {/* STYLES */}
-      {/* ========================= */}
       <style jsx>{`
         .page {
           min-height: 100vh;
-          background: #f4f6fb;
+          background: #f5f7fb;
           font-family: Arial, sans-serif;
         }
 
@@ -459,33 +487,28 @@ export default function Home() {
           position: sticky;
           top: 0;
           z-index: 10;
-
+          background: white;
           display: flex;
           justify-content: space-between;
           align-items: center;
-
           padding: 18px 24px;
-
-          background: white;
-
-          box-shadow:
-            0 2px 10px rgba(0,0,0,0.05);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
         .logo {
+          cursor: pointer;
           font-size: 28px;
-          font-weight: bold;
         }
 
-        .navRight {
+        .rightNav {
           display: flex;
-          align-items: center;
           gap: 10px;
+          align-items: center;
         }
 
         .navBtn,
-        .cartBtn,
-        .logoutBtn {
+        .accountBtn,
+        .cartBtn {
           border: none;
           padding: 10px 16px;
           border-radius: 10px;
@@ -494,15 +517,11 @@ export default function Home() {
         }
 
         .navBtn {
-          background: #2563eb;
-          color: white;
+          background: #eee;
         }
 
-        .logoutBtn {
-          background: #ef4444;
-          color: white;
-        }
-
+        .dark,
+        .accountBtn,
         .cartBtn {
           background: black;
           color: white;
@@ -510,11 +529,11 @@ export default function Home() {
 
         .hero {
           text-align: center;
-          padding: 50px 20px 20px;
+          padding: 60px 20px 30px;
         }
 
         .hero h2 {
-          font-size: 40px;
+          font-size: 42px;
           margin-bottom: 10px;
         }
 
@@ -522,17 +541,34 @@ export default function Home() {
           color: #666;
         }
 
+        .controls {
+          max-width: 1200px;
+          margin: auto;
+          padding: 0 20px 20px;
+          display: flex;
+          gap: 15px;
+          flex-wrap: wrap;
+        }
+
+        .controls input,
+        .controls select {
+          flex: 1;
+          min-width: 200px;
+          padding: 14px;
+          border-radius: 12px;
+          border: 1px solid #ddd;
+          font-size: 15px;
+          outline: none;
+          background: white;
+        }
+
         .grid {
           display: grid;
-
-          grid-template-columns:
-            repeat(
-              auto-fit,
-              minmax(260px, 1fr)
-            );
-
-          gap: 20px;
-
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(240px, 1fr)
+          );
+          gap: 24px;
           padding: 20px;
         }
 
@@ -540,11 +576,8 @@ export default function Home() {
           background: white;
           border-radius: 18px;
           overflow: hidden;
-
-          box-shadow:
-            0 10px 25px rgba(0,0,0,0.06);
-
-          transition: 0.2s;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+          transition: 0.2s ease;
         }
 
         .card:hover {
@@ -553,103 +586,76 @@ export default function Home() {
 
         .card img {
           width: 100%;
-          height: 220px;
+          height: 240px;
           object-fit: cover;
+          cursor: pointer;
         }
 
         .info {
           padding: 16px;
         }
 
-        .price {
-          font-size: 22px;
-          font-weight: bold;
-          margin: 10px 0;
-        }
-
-        .desc {
-          color: #666;
-          margin-bottom: 10px;
-        }
-
-        .category {
-          display: inline-block;
-          background: #eef2ff;
-          color: #4338ca;
-
-          padding: 6px 10px;
-
-          border-radius: 8px;
-
-          font-size: 13px;
-
-          margin-bottom: 15px;
-        }
-
-        .sellerBox {
-          background: #f9fafb;
-
-          padding: 12px;
-
-          border-radius: 12px;
-
-          margin-bottom: 15px;
-
-          border: 1px solid #eee;
-        }
-
-        .sellerBox h4 {
+        .info h3 {
           margin-bottom: 8px;
         }
 
-        .sellerBox p {
-          font-size: 14px;
-          margin: 4px 0;
+        .price {
+          font-size: 20px;
+          font-weight: bold;
+          margin-bottom: 8px;
         }
 
-        .addBtn {
-          width: 100%;
-          padding: 12px;
+        .category,
+        .seller {
+          color: #666;
+          margin-bottom: 6px;
+          font-size: 14px;
+        }
 
+        .actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 15px;
+        }
+
+        .viewBtn,
+        .cartAddBtn {
+          flex: 1;
           border: none;
-          border-radius: 12px;
+          padding: 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          font-weight: 600;
+        }
 
+        .viewBtn {
+          background: #eee;
+        }
+
+        .cartAddBtn {
           background: black;
           color: white;
-
-          cursor: pointer;
-          font-weight: bold;
         }
 
         .backdrop {
           position: fixed;
           inset: 0;
-
           background: rgba(0,0,0,0.4);
-
-          z-index: 30;
+          z-index: 20;
         }
 
         .cart {
           position: fixed;
-
           top: 0;
-          right: -400px;
-
-          width: 350px;
+          right: -420px;
+          width: 380px;
           height: 100%;
-
           background: white;
-
-          z-index: 40;
-
+          z-index: 30;
           transition: 0.3s ease;
-
           display: flex;
           flex-direction: column;
-
-          box-shadow:
-            -10px 0 30px rgba(0,0,0,0.2);
+          box-shadow: -10px 0 30px rgba(0,0,0,0.15);
         }
 
         .cart.show {
@@ -657,12 +663,9 @@ export default function Home() {
         }
 
         .cartHeader {
+          padding: 20px;
           display: flex;
           justify-content: space-between;
-          align-items: center;
-
-          padding: 20px;
-
           border-bottom: 1px solid #eee;
         }
 
@@ -679,48 +682,38 @@ export default function Home() {
         }
 
         .cartItem {
+          padding: 18px;
+          border-bottom: 1px solid #eee;
           display: flex;
           justify-content: space-between;
-
-          padding: 15px;
-
-          border-bottom: 1px solid #eee;
+          gap: 10px;
         }
 
         .removeBtn {
-          background: #ef4444;
+          background: crimson;
           color: white;
-
           border: none;
-
           padding: 8px 10px;
-
           border-radius: 8px;
-
           cursor: pointer;
         }
 
-        .cartBottom {
+        .checkoutBox {
           padding: 20px;
           border-top: 1px solid #eee;
         }
 
         .checkoutBtn {
           width: 100%;
-
           padding: 14px;
-
+          margin-top: 12px;
           border: none;
-          border-radius: 12px;
-
           background: black;
           color: white;
-
+          border-radius: 12px;
+          font-size: 15px;
           font-weight: bold;
-
           cursor: pointer;
-
-          margin-top: 10px;
         }
 
         .checkoutBtn:disabled {
@@ -733,17 +726,26 @@ export default function Home() {
           color: #666;
         }
 
+        .emptyProducts {
+          grid-column: 1 / -1;
+          text-align: center;
+          padding: 40px;
+          background: white;
+          border-radius: 18px;
+        }
+
         @media (max-width: 768px) {
           .hero h2 {
-            font-size: 28px;
+            font-size: 30px;
           }
 
           .cart {
             width: 100%;
+            right: -100%;
           }
 
           .nav {
-            padding: 14px;
+            padding: 15px;
           }
         }
       `}</style>
