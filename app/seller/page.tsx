@@ -3,32 +3,37 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type UserType = {
-  name?: string;
-  email?: string;
-  isSeller?: boolean;
-};
-
 export default function SellerPage() {
   const router = useRouter();
 
   // =========================
-  // PRODUCT FORM
+  // PRODUCT INFO
   // =========================
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
 
-  // 🔥 REAL IMAGE FILE
-  const [imageFile, setImageFile] =
-    useState<File | null>(null);
+  // =========================
+  // IMAGE
+  // =========================
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
+  // =========================
+  // SELLER INFO
+  // =========================
+  const [sellerName, setSellerName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  // =========================
+  // STATE
+  // =========================
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-
-  const [user, setUser] =
-    useState<UserType | null>(null);
+  const [user, setUser] = useState<any>(null);
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
@@ -38,19 +43,48 @@ export default function SellerPage() {
   // AUTH CHECK
   // =========================
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user");
-
-    const token =
-      localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
 
     if (!storedUser || !token) {
       router.push("/login");
       return;
     }
 
-    setUser(JSON.parse(storedUser));
+    const parsedUser = JSON.parse(storedUser);
+
+    setUser(parsedUser);
+
+    // auto-fill existing seller info
+    setSellerName(parsedUser.storeName || "");
+    setBankName(parsedUser.bankName || "");
+    setAccountNumber(parsedUser.accountNumber || "");
+    setAccountName(parsedUser.accountName || "");
+    setPhoneNumber(parsedUser.phoneNumber || "");
   }, [router]);
+
+  // =========================
+  // IMAGE UPLOAD
+  // =========================
+  const uploadImage = async () => {
+    if (!imageFile) return "";
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    const res = await fetch(`${API_URL}/api/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Image upload failed");
+    }
+
+    return data.imageUrl;
+  };
 
   // =========================
   // UPLOAD PRODUCT
@@ -60,39 +94,40 @@ export default function SellerPage() {
       setLoading(true);
       setMessage("");
 
-      const token =
-        localStorage.getItem("token");
+      const token = localStorage.getItem("token");
 
-      if (!imageFile) {
-        setMessage("Please select an image");
-        setLoading(false);
+      if (!token) {
+        setMessage("Login required");
         return;
       }
 
-      // 🔥 FORMDATA
-      const formData = new FormData();
-
-      formData.append("name", name);
-      formData.append("price", price);
-      formData.append(
-        "description",
-        description
-      );
-      formData.append("category", category);
-
-      // 🔥 FILE
-      formData.append("image", imageFile);
+      // upload image first
+      const uploadedImage = await uploadImage();
 
       const res = await fetch(
         `${API_URL}/api/products/upload`,
         {
           method: "POST",
-
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
 
-          body: formData,
+          body: JSON.stringify({
+            name,
+            price: Number(price),
+            image: uploadedImage,
+            description,
+            category,
+
+            // seller credentials
+            storeName: sellerName,
+            sellerName,
+            bankName,
+            accountNumber,
+            accountName,
+            phoneNumber,
+          }),
         }
       );
 
@@ -101,21 +136,21 @@ export default function SellerPage() {
       console.log("UPLOAD RESPONSE:", data);
 
       if (!res.ok) {
-        setMessage(
-          data.error || "Upload failed"
-        );
-        setLoading(false);
+        setMessage(data.error || "Upload failed");
         return;
       }
 
-      setMessage(
-        "Product uploaded successfully!"
-      );
+      setMessage("Product uploaded successfully!");
 
-      // AUTO SELLER UPDATE
+      // update local user
       const updatedUser = {
         ...user,
         isSeller: true,
+        storeName: sellerName,
+        bankName,
+        accountNumber,
+        accountName,
+        phoneNumber,
       };
 
       localStorage.setItem(
@@ -125,7 +160,7 @@ export default function SellerPage() {
 
       setUser(updatedUser);
 
-      // CLEAR FORM
+      // clear product form only
       setName("");
       setPrice("");
       setDescription("");
@@ -134,16 +169,12 @@ export default function SellerPage() {
 
     } catch (err) {
       console.error("UPLOAD ERROR:", err);
-
       setMessage("Server error");
     } finally {
       setLoading(false);
     }
   };
 
-  // =========================
-  // UI
-  // =========================
   return (
     <div className="page">
       <div className="container">
@@ -153,23 +184,66 @@ export default function SellerPage() {
           <h1>Seller Dashboard</h1>
 
           <p>
-            Welcome{" "}
-            {user?.name || user?.email}
+            Welcome {user?.email}
           </p>
 
           {user?.isSeller && (
-            <p className="sellerBadge">
-              ✔ Seller Active
-            </p>
+            <div className="sellerBadge">
+              Verified Seller
+            </div>
           )}
         </div>
 
-        {/* UPLOAD CARD */}
+        {/* CARD */}
         <div className="card">
+
+          {/* SELLER INFO */}
+          <h2>Seller Information</h2>
+
+          <input
+            placeholder="Store Name"
+            value={sellerName}
+            onChange={(e) =>
+              setSellerName(e.target.value)
+            }
+          />
+
+          <input
+            placeholder="Phone Number"
+            value={phoneNumber}
+            onChange={(e) =>
+              setPhoneNumber(e.target.value)
+            }
+          />
+
+          <input
+            placeholder="Bank Name"
+            value={bankName}
+            onChange={(e) =>
+              setBankName(e.target.value)
+            }
+          />
+
+          <input
+            placeholder="Account Number"
+            value={accountNumber}
+            onChange={(e) =>
+              setAccountNumber(e.target.value)
+            }
+          />
+
+          <input
+            placeholder="Account Name"
+            value={accountName}
+            onChange={(e) =>
+              setAccountName(e.target.value)
+            }
+          />
+
+          {/* PRODUCT INFO */}
           <h2>Upload Product</h2>
 
           <input
-            type="text"
             placeholder="Product Name"
             value={name}
             onChange={(e) =>
@@ -186,17 +260,6 @@ export default function SellerPage() {
             }
           />
 
-          {/* 🔥 REAL FILE INPUT */}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) =>
-              setImageFile(
-                e.target.files?.[0] || null
-              )
-            }
-          />
-
           <textarea
             placeholder="Description"
             value={description}
@@ -206,11 +269,21 @@ export default function SellerPage() {
           />
 
           <input
-            type="text"
             placeholder="Category"
             value={category}
             onChange={(e) =>
               setCategory(e.target.value)
+            }
+          />
+
+          {/* IMAGE */}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) =>
+              setImageFile(
+                e.target.files?.[0] || null
+              )
             }
           />
 
@@ -222,27 +295,30 @@ export default function SellerPage() {
               ? "Uploading..."
               : "Upload Product"}
           </button>
-        </div>
 
-        {/* MESSAGE */}
-        {message && (
-          <div className="message">
-            {message}
-          </div>
-        )}
+          {message && (
+            <div className="message">
+              {message}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* STYLES */}
       <style jsx>{`
         .page {
           min-height: 100vh;
-          background: #f5f7fb;
+          background: linear-gradient(
+            to bottom right,
+            #0f172a,
+            #111827
+          );
           padding: 40px 20px;
-          font-family: Arial, sans-serif;
+          color: white;
+          font-family: Arial;
         }
 
         .container {
-          max-width: 800px;
+          max-width: 850px;
           margin: auto;
         }
 
@@ -251,25 +327,31 @@ export default function SellerPage() {
         }
 
         .header h1 {
-          font-size: 36px;
-          margin-bottom: 8px;
+          font-size: 38px;
+          margin-bottom: 10px;
         }
 
         .sellerBadge {
-          color: green;
+          display: inline-block;
+          background: #22c55e;
+          padding: 8px 14px;
+          border-radius: 999px;
+          margin-top: 10px;
+          font-size: 14px;
           font-weight: bold;
         }
 
         .card {
-          background: white;
-          padding: 25px;
-          border-radius: 16px;
-          box-shadow:
-            0 10px 30px rgba(0,0,0,0.05);
+          background: rgba(255,255,255,0.08);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 22px;
+          padding: 30px;
         }
 
-        .card h2 {
-          margin-bottom: 20px;
+        h2 {
+          margin-top: 25px;
+          margin-bottom: 15px;
         }
 
         input,
@@ -277,35 +359,51 @@ export default function SellerPage() {
           width: 100%;
           padding: 14px;
           margin-bottom: 14px;
-          border-radius: 10px;
-          border: 1px solid #ddd;
+          border-radius: 14px;
+          border: none;
+          background: rgba(255,255,255,0.08);
+          color: white;
           font-size: 15px;
         }
 
         textarea {
           min-height: 120px;
+          resize: vertical;
         }
 
         button {
           width: 100%;
-          padding: 14px;
+          padding: 16px;
           border: none;
-          border-radius: 10px;
-          background: black;
+          border-radius: 14px;
+          background: linear-gradient(
+            to right,
+            #2563eb,
+            #7c3aed
+          );
           color: white;
-          font-size: 15px;
+          font-size: 16px;
+          font-weight: bold;
           cursor: pointer;
+          transition: 0.25s;
+        }
+
+        button:hover {
+          transform: translateY(-2px);
+          opacity: 0.95;
         }
 
         button:disabled {
-          background: #888;
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .message {
-          margin-top: 20px;
-          background: white;
-          padding: 15px;
+          margin-top: 18px;
+          padding: 14px;
           border-radius: 12px;
+          background: rgba(255,255,255,0.1);
+          text-align: center;
         }
       `}</style>
     </div>
