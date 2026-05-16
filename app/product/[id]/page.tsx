@@ -341,10 +341,9 @@ export default function ProductPage() {
   // OWNER CHECK
   // =========================
   const isOwner =
-    user &&
-    (user._id ===
-      product.sellerId ||
-      user.id === product.sellerId);
+  user &&
+  String(user._id || user.id) ===
+    String(product.sellerId);
 
   // =========================
   // UI
@@ -517,10 +516,7 @@ export default function ProductPage() {
 
             {/* WHATSAPP */}
             <a
-              href={`https://wa.me/${
-                product.whatsapp ||
-                "2340000000000"
-              }`}
+              href={`https://wa.me/${product.phoneNumber}`}
               target="_blank"
             >
               <button className="waBtn">
@@ -560,11 +556,9 @@ export default function ProductPage() {
             <h3>Seller Details</h3>
 
             <p>
-              <b>Store:</b>{" "}
-              {
-                product.sellerName
-              }
-            </p>
+  <b>Store:</b>{" "}
+  {product.storeName || product.sellerName}
+</p>
 
             <p>
               <b>Bank:</b>{" "}
@@ -585,6 +579,10 @@ export default function ProductPage() {
               {
                 product.accountName
               }
+              <p>
+  <b>Phone:</b>{" "}
+  {product.phoneNumber}
+</p>
             </p>
           </div>
         </div>
@@ -887,6 +885,21 @@ export default function ProductPage() {
             height: 350px;
           }
         }
+          .relatedCard {
+  transition: 0.25s ease;
+}
+
+.relatedCard:hover {
+  transform: translateY(-5px);
+}
+
+.buyBtn:hover,
+.waBtn:hover,
+.editBtn:hover,
+.deleteBtn:hover {
+  transform: translateY(-2px);
+  opacity: 0.92;
+}
       `}</style>
     </div>
   );
