@@ -91,3 +91,14 @@ img {
   background: #111827;
   color: white;
 }
+
+body {
+  background: white;
+  color: black;
+  transition: 0.3s;
+}
+
+.dark body {
+  background: #0f172a;
+  color: white;
+}

@@ -1,8 +1,10 @@
 "use client";
 
 import "./globals.css";
-import { ThemeProvider } from "next-themes";
 import { Toaster } from "react-hot-toast";
+
+import { ThemeProvider }
+from "@/components/ThemeProvider";
 
 export default function RootLayout({
   children,
@@ -10,19 +12,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html suppressHydrationWarning>
+    <html lang="en">
       <body>
-
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-        >
-          <Toaster position="top-right" />
-
+        <ThemeProvider>
           {children}
         </ThemeProvider>
-
       </body>
     </html>
   );
+  <button
+  onClick={() => {
+    document.documentElement.classList.toggle(
+      "dark"
+    );
+  }}
+>
+  Toggle Dark Mode
+</button>
 }
