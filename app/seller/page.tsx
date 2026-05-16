@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Package, ImageIcon } from "lucide-react";
-import { motion } from "framer-motion";
+
+type UserType = {
+  name?: string;
+  email?: string;
+  isSeller?: boolean;
+};
 
 export default function SellerPage() {
   const router = useRouter();
@@ -13,19 +17,18 @@ export default function SellerPage() {
   // =========================
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [image, setImage] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
 
-  // =========================
-  // STATE
-  // =========================
-  const [loading, setLoading] = useState(false);
-  const [uploadingImage, setUploadingImage] =
-    useState(false);
+  // 🔥 REAL IMAGE FILE
+  const [imageFile, setImageFile] =
+    useState<File | null>(null);
 
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [user, setUser] = useState<any>(null);
+
+  const [user, setUser] =
+    useState<UserType | null>(null);
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
@@ -50,61 +53,6 @@ export default function SellerPage() {
   }, [router]);
 
   // =========================
-  // IMAGE UPLOAD
-  // =========================
-  const uploadImage = async (
-    file: File
-  ) => {
-    try {
-      setUploadingImage(true);
-      setMessage("");
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        "image",
-        file
-      );
-
-      const res = await fetch(
-        `${API_URL}/api/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data =
-        await res.json();
-
-      if (!res.ok) {
-        setMessage(
-          data.error ||
-            "Image upload failed"
-        );
-
-        return;
-      }
-
-      setImage(data.imageUrl);
-
-      setMessage(
-        "Image uploaded successfully"
-      );
-
-    } catch (err) {
-      console.log(err);
-
-      setMessage(
-        "Image upload failed"
-      );
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  // =========================
   // UPLOAD PRODUCT
   // =========================
   const uploadProduct = async () => {
@@ -115,42 +63,48 @@ export default function SellerPage() {
       const token =
         localStorage.getItem("token");
 
+      if (!imageFile) {
+        setMessage("Please select an image");
+        setLoading(false);
+        return;
+      }
+
+      // 🔥 FORMDATA
+      const formData = new FormData();
+
+      formData.append("name", name);
+      formData.append("price", price);
+      formData.append(
+        "description",
+        description
+      );
+      formData.append("category", category);
+
+      // 🔥 FILE
+      formData.append("image", imageFile);
+
       const res = await fetch(
         `${API_URL}/api/products/upload`,
         {
           method: "POST",
 
           headers: {
-            "Content-Type":
-              "application/json",
-
             Authorization: `Bearer ${token}`,
           },
 
-          body: JSON.stringify({
-            name,
-            price: Number(price),
-            image,
-            description,
-            category,
-          }),
+          body: formData,
         }
       );
 
-      const data =
-        await res.json();
+      const data = await res.json();
 
-      console.log(
-        "UPLOAD RESPONSE:",
-        data
-      );
+      console.log("UPLOAD RESPONSE:", data);
 
       if (!res.ok) {
         setMessage(
-          data.error ||
-            "Upload failed"
+          data.error || "Upload failed"
         );
-
+        setLoading(false);
         return;
       }
 
@@ -158,7 +112,7 @@ export default function SellerPage() {
         "Product uploaded successfully!"
       );
 
-      // AUTO SELLER
+      // AUTO SELLER UPDATE
       const updatedUser = {
         ...user,
         isSeller: true,
@@ -174,387 +128,184 @@ export default function SellerPage() {
       // CLEAR FORM
       setName("");
       setPrice("");
-      setImage("");
       setDescription("");
       setCategory("");
+      setImageFile(null);
 
     } catch (err) {
-      console.error(
-        "UPLOAD ERROR:",
-        err
-      );
+      console.error("UPLOAD ERROR:", err);
 
-      setMessage(
-        "Server error"
-      );
+      setMessage("Server error");
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // UI
+  // =========================
   return (
     <div className="page">
-      <motion.div
-        className="container"
-        initial={{
-          opacity: 0,
-          y: 20,
-        }}
-        animate={{
-          opacity: 1,
-          y: 0,
-        }}
-      >
+      <div className="container">
+
         {/* HEADER */}
         <div className="header">
-          <div>
-            <h1>
-              Seller Dashboard
-            </h1>
+          <h1>Seller Dashboard</h1>
 
-            <p>
-              Welcome{" "}
-              {user?.name ||
-                user?.email}
+          <p>
+            Welcome{" "}
+            {user?.name || user?.email}
+          </p>
+
+          {user?.isSeller && (
+            <p className="sellerBadge">
+              ✔ Seller Active
             </p>
-
-            {user?.isSeller && (
-              <div className="sellerBadge">
-                ✔ Verified Seller
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* CARD */}
-        <motion.div
-          className="card"
-          initial={{
-            opacity: 0,
-            scale: 0.96,
-          }}
-          animate={{
-            opacity: 1,
-            scale: 1,
-          }}
-        >
-          <div className="titleRow">
-            <Package size={24} />
+        {/* UPLOAD CARD */}
+        <div className="card">
+          <h2>Upload Product</h2>
 
-            <h2>
-              Upload Product
-            </h2>
-          </div>
-
-          {/* NAME */}
           <input
+            type="text"
             placeholder="Product Name"
             value={name}
             onChange={(e) =>
-              setName(
-                e.target.value
-              )
+              setName(e.target.value)
             }
           />
 
-          {/* PRICE */}
           <input
             type="number"
             placeholder="Price"
             value={price}
             onChange={(e) =>
-              setPrice(
-                e.target.value
+              setPrice(e.target.value)
+            }
+          />
+
+          {/* 🔥 REAL FILE INPUT */}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) =>
+              setImageFile(
+                e.target.files?.[0] || null
               )
             }
           />
 
-          {/* IMAGE */}
-          <div className="uploadBox">
-            <label>
-              <ImageIcon size={18} />
-              Upload Product Image
-            </label>
-
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (
-                e
-              ) => {
-                const file =
-                  e.target
-                    .files?.[0];
-
-                if (!file)
-                  return;
-
-                await uploadImage(
-                  file
-                );
-              }}
-            />
-
-            {uploadingImage && (
-              <p>
-                Uploading image...
-              </p>
-            )}
-
-            {image && (
-              <img
-                src={image}
-                alt="preview"
-                className="preview"
-              />
-            )}
-          </div>
-
-          {/* DESCRIPTION */}
           <textarea
             placeholder="Description"
             value={description}
             onChange={(e) =>
-              setDescription(
-                e.target.value
-              )
+              setDescription(e.target.value)
             }
           />
 
-          {/* CATEGORY */}
           <input
+            type="text"
             placeholder="Category"
             value={category}
             onChange={(e) =>
-              setCategory(
-                e.target.value
-              )
+              setCategory(e.target.value)
             }
           />
 
-          {/* BUTTON */}
           <button
-            onClick={
-              uploadProduct
-            }
-            disabled={
-              loading ||
-              uploadingImage
-            }
+            onClick={uploadProduct}
+            disabled={loading}
           >
-            <Upload size={18} />
-
             {loading
               ? "Uploading..."
               : "Upload Product"}
           </button>
-        </motion.div>
+        </div>
 
         {/* MESSAGE */}
         {message && (
-          <motion.div
-            className="message"
-            initial={{
-              opacity: 0,
-            }}
-            animate={{
-              opacity: 1,
-            }}
-          >
+          <div className="message">
             {message}
-          </motion.div>
+          </div>
         )}
-      </motion.div>
+      </div>
 
       {/* STYLES */}
       <style jsx>{`
         .page {
           min-height: 100vh;
+          background: #f5f7fb;
           padding: 40px 20px;
-
-          background:
-            linear-gradient(
-              to bottom right,
-              #f8fafc,
-              #eef2ff
-            );
-
-          font-family:
-            Inter,
-            sans-serif;
+          font-family: Arial, sans-serif;
         }
 
         .container {
-          max-width: 850px;
+          max-width: 800px;
           margin: auto;
         }
 
         .header {
-          margin-bottom: 30px;
+          margin-bottom: 25px;
         }
 
         .header h1 {
-          font-size: 42px;
+          font-size: 36px;
           margin-bottom: 8px;
-          font-weight: 800;
-          color: #111827;
-        }
-
-        .header p {
-          color: #6b7280;
-          font-size: 15px;
         }
 
         .sellerBadge {
-          margin-top: 10px;
-          display: inline-block;
-          background: #dcfce7;
-          color: #166534;
-          padding: 8px 14px;
-          border-radius: 999px;
-          font-size: 14px;
-          font-weight: 600;
+          color: green;
+          font-weight: bold;
         }
 
         .card {
           background: white;
-          border-radius: 28px;
-          padding: 28px;
-
+          padding: 25px;
+          border-radius: 16px;
           box-shadow:
-            0 20px 50px
-            rgba(0,0,0,0.08);
+            0 10px 30px rgba(0,0,0,0.05);
         }
 
-        .titleRow {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 24px;
-        }
-
-        .titleRow h2 {
-          font-size: 24px;
-          color: #111827;
+        .card h2 {
+          margin-bottom: 20px;
         }
 
         input,
         textarea {
           width: 100%;
-          padding: 15px;
-          margin-bottom: 16px;
-
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
-
+          padding: 14px;
+          margin-bottom: 14px;
+          border-radius: 10px;
+          border: 1px solid #ddd;
           font-size: 15px;
-          outline: none;
-
-          transition: 0.2s;
-        }
-
-        input:focus,
-        textarea:focus {
-          border-color: #6366f1;
-          box-shadow:
-            0 0 0 4px
-            rgba(99,102,241,0.1);
         }
 
         textarea {
-          min-height: 140px;
-          resize: vertical;
-        }
-
-        .uploadBox {
-          border: 2px dashed #d1d5db;
-          padding: 20px;
-          border-radius: 18px;
-          margin-bottom: 20px;
-          background: #fafafa;
-        }
-
-        .uploadBox label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 600;
-          margin-bottom: 12px;
-        }
-
-        .preview {
-          width: 100%;
-          margin-top: 14px;
-          border-radius: 16px;
-          max-height: 320px;
-          object-fit: cover;
+          min-height: 120px;
         }
 
         button {
           width: 100%;
-          padding: 16px;
-
+          padding: 14px;
           border: none;
-          border-radius: 18px;
-
-          background: linear-gradient(
-            135deg,
-            #4f46e5,
-            #7c3aed
-          );
-
+          border-radius: 10px;
+          background: black;
           color: white;
-          font-size: 16px;
-          font-weight: 700;
-
+          font-size: 15px;
           cursor: pointer;
-
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-
-          transition: 0.25s;
-        }
-
-        button:hover {
-          transform: translateY(-2px);
-
-          box-shadow:
-            0 10px 25px
-            rgba(79,70,229,0.3);
         }
 
         button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
+          background: #888;
         }
 
         .message {
           margin-top: 20px;
-
           background: white;
-          padding: 18px;
-
-          border-radius: 18px;
-
-          font-weight: 600;
-
-          box-shadow:
-            0 10px 30px
-            rgba(0,0,0,0.06);
-        }
-
-        @media (
-          max-width: 768px
-        ) {
-          .header h1 {
-            font-size: 32px;
-          }
-
-          .card {
-            padding: 20px;
-          }
+          padding: 15px;
+          border-radius: 12px;
         }
       `}</style>
     </div>
