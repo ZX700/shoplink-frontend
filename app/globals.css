@@ -71,3 +71,23 @@ img {
 .gradientBtn:hover {
   opacity: 0.95;
 }
+.dark body {
+  background: #0f172a;
+  color: white;
+}
+
+.dark .card {
+  background: #1e293b;
+  color: white;
+}
+
+.dark input,
+.dark textarea {
+  background: #1e293b;
+  color: white;
+}
+
+.dark .drawer {
+  background: #111827;
+  color: white;
+}
