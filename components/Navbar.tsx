@@ -2,6 +2,15 @@
 
 import Link from "next/link";
 import { FaShoppingCart } from "react-icons/fa";
+import { useRouter } from "next/navigation";
+
+const router = useRouter();
+
+const logout = () => {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  router.push("/");
+};
 
 export default function Navbar({
   user,
@@ -20,38 +29,43 @@ export default function Navbar({
         <div className="navRight">
 
           {user ? (
-            <>
-              <Link href="/seller">
-                <button className="sellerBtn">
-                  Account
-                </button>
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/login">
-                <button className="ghostBtn">
-                  Login
-                </button>
-              </Link>
+  <>
+    <Link href="/seller">
+      <button className="sellerBtn">
+        Account
+      </button>
+    </Link>
 
-              <Link href="/signup">
-                <button className="gradientBtn authBtn">
-                  Sign Up
-                </button>
-              </Link>
-            </>
-          )}
+   <button 
+   className="ghostBtn" onClick={logout}>
+  Logout
+</button>
+  </>
+) : (
+  <>
+    <Link href="/login">
+      <button className="ghostBtn">
+        Login
+      </button>
+    </Link>
 
+    <Link href="/signup">
+      <button className="authBtn gradientBtn">
+        Sign Up
+      </button>
+    </Link>
+  </>
+)}
           <button
             className="cartBtn"
             onClick={openCart}
           >
             <FaShoppingCart />
-            <span>{cartCount}</span>
+           <span>{cartCount ?? 0}</span>
           </button>
         </div>
       </div>
+      
 
       <style jsx>{`
         .nav {

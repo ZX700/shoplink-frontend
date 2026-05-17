@@ -57,6 +57,7 @@ export default function Home() {
     <div>
 
       <Navbar
+      
         user={user}
         cartCount={cart.length}
         openCart={() => {}}

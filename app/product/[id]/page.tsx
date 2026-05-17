@@ -131,60 +131,53 @@ export default function ProductPage() {
   // BUY NOW
   // =========================
   const handleCheckout = async () => {
-    try {
-      setMessage(
-        "Redirecting to payment..."
-      );
+  try {
+    setMessage("Redirecting to payment...");
 
-      const token =
-        localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
-      const res = await fetch(
-        `${API_URL}/api/checkout`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization: `Bearer ${token}`,
-          },
-
-          body: JSON.stringify({
-            items: [
-              {
-                ...product,
-                qty: quantity,
-              },
-            ],
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (data.url) {
-        window.location.href =
-          data.url;
-      } else {
-        setMessage(
-          data.error ||
-            "Checkout failed"
-        );
-      }
-    } catch (err) {
-      console.log(err);
-
-      setMessage("Server error");
+    if (!token) {
+      router.push("/login");
+      return;
     }
-  };
 
+    const res = await fetch(`${API_URL}/api/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+
+      body: JSON.stringify({
+        product: {
+          _id: product._id,
+          name: product.name,
+          price: product.price,
+          category: product.category,
+        },
+
+        userEmail: user?.email || null,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.log("CHECKOUT ERROR:", data);
+      setMessage(data.error || "Checkout failed");
+      return;
+    }
+
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      setMessage("No checkout URL returned");
+    }
+  } catch (err) {
+    console.log(err);
+    setMessage("Server error");
+  }
+};
   // =========================
   // REVIEW
   // =========================
